@@ -3,7 +3,6 @@
 import { wait } from "@trigger.dev/sdk";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { appEnv } from "@/env";
 import { decide } from "@/lib/approvals/decide";
 import { requireUserForAction } from "@/lib/session";
 import type { DecisionPayload } from "@/trigger/process-email";
@@ -31,7 +30,6 @@ export async function decideApproval(input: z.input<typeof inputSchema>): Promis
   const tokenId = result.approval.waitTokenId;
   if (tokenId) {
     try {
-      appEnv();
       // Wakes the suspended run. Completing a token twice is harmless, so a
       // repeated submit after a failed resume simply tries again.
       await wait.completeToken<DecisionPayload>(tokenId, { decision: parsed.data.decision });
