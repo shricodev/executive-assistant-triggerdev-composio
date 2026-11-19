@@ -53,6 +53,7 @@ CREATE TABLE "approvals" (
 	"decided_by" text,
 	"decision_note" text,
 	"failure_reason" text,
+	"execution_run_id" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "approvals_request_id_version_unique" UNIQUE("request_id","version")

@@ -207,6 +207,9 @@ export const approvals = pgTable(
     decidedBy: text("decided_by").references(() => user.id),
     decisionNote: text("decision_note"),
     failureReason: text("failure_reason"),
+    // The run that claimed execution. A different run must not execute the
+    // same approval, even if it wakes from the same wait token.
+    executionRunId: text("execution_run_id"),
     ...timestamps,
   },
   (table) => [
