@@ -30,6 +30,8 @@ const appSchema = z.object({
         .filter(Boolean),
     ),
   TRIGGER_SECRET_KEY: z.string().min(1),
+  // Optional. Enables links from the dashboard to runs in Trigger.dev.
+  TRIGGER_PROJECT_REF: z.string().optional(),
 });
 
 function lazy<T extends z.ZodType>(name: string, schema: T): () => z.output<T> {
