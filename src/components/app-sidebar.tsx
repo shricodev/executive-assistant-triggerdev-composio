@@ -3,7 +3,7 @@
 import { Activity, CircleCheckBig, LayoutDashboard, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import { Logo } from "@/components/logo";
 import {
   Sidebar,
@@ -25,9 +25,33 @@ const NAV = [
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-export function AppSidebar({ footer, badge }: { footer: ReactNode; badge: ReactNode }) {
-  const pathname = usePathname();
+function Nav({ pathname, badge }: { pathname: string | null; badge: ReactNode }) {
+  return (
+    <SidebarMenu>
+      {NAV.map(({ href, label, icon: Icon }) => {
+        const active =
+          pathname !== null && (href === "/" ? pathname === "/" : pathname.startsWith(href));
+        return (
+          <SidebarMenuItem key={href}>
+            <SidebarMenuButton asChild isActive={active} tooltip={label}>
+              <Link href={href} aria-current={active ? "page" : undefined}>
+                <Icon aria-hidden />
+                <span>{label}</span>
+              </Link>
+            </SidebarMenuButton>
+            {href === "/approvals" && badge}
+          </SidebarMenuItem>
+        );
+      })}
+    </SidebarMenu>
+  );
+}
 
+function ActiveNav({ badge }: { badge: ReactNode }) {
+  return <Nav pathname={usePathname()} badge={badge} />;
+}
+
+export function AppSidebar({ footer, badge }: { footer: ReactNode; badge: ReactNode }) {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
@@ -48,22 +72,11 @@ export function AppSidebar({ footer, badge }: { footer: ReactNode; badge: ReactN
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {NAV.map(({ href, label, icon: Icon }) => {
-                const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-                return (
-                  <SidebarMenuItem key={href}>
-                    <SidebarMenuButton asChild isActive={active} tooltip={label}>
-                      <Link href={href} aria-current={active ? "page" : undefined}>
-                        <Icon aria-hidden />
-                        <span>{label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                    {href === "/approvals" && badge}
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
+            {/* The pathname is request data on dynamic routes, so the static
+                shell renders the links without an active item first. */}
+            <Suspense fallback={<Nav pathname={null} badge={null} />}>
+              <ActiveNav badge={badge} />
+            </Suspense>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>

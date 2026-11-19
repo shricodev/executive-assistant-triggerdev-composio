@@ -1,8 +1,14 @@
 import { Suspense } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import {
+  SidebarInset,
+  SidebarMenuBadge,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserMenu } from "@/components/user-menu";
+import { countPending } from "@/lib/queries";
 import { requireUser } from "@/lib/session";
 
 async function CurrentUserMenu() {
@@ -10,11 +16,22 @@ async function CurrentUserMenu() {
   return <UserMenu name={user.name} email={user.email} />;
 }
 
+async function PendingBadge() {
+  const user = await requireUser();
+  const pending = await countPending(user.id);
+  if (pending === 0) return null;
+  return <SidebarMenuBadge aria-label={`${pending} waiting for approval`}>{pending}</SidebarMenuBadge>;
+}
+
 export default function DashboardLayout({ children }: LayoutProps<"/">) {
   return (
     <SidebarProvider>
       <AppSidebar
-        badge={null}
+        badge={
+          <Suspense fallback={null}>
+            <PendingBadge />
+          </Suspense>
+        }
         footer={
           <Suspense fallback={<Skeleton className="h-12 w-full" />}>
             <CurrentUserMenu />
