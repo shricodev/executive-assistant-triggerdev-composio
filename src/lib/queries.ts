@@ -43,7 +43,7 @@ export async function listRequests(userId: string, limit: number) {
     .select()
     .from(requests)
     .where(eq(requests.userId, userId))
-    .orderBy(desc(requests.createdAt))
+    .orderBy(desc(requests.receivedAt))
     .limit(limit);
   const latest = await latestApprovals(
     userId,

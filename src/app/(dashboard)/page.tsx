@@ -7,7 +7,14 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -146,16 +153,16 @@ async function Overview() {
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <div className="space-y-1.5">
-            <CardTitle className="text-base">Activity</CardTitle>
-            <CardDescription>The latest steps taken by the workflow.</CardDescription>
-          </div>
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/activity">
-              View all <ArrowRight aria-hidden />
-            </Link>
-          </Button>
+        <CardHeader>
+          <CardTitle className="text-base">Activity</CardTitle>
+          <CardDescription>The latest steps taken by the workflow.</CardDescription>
+          <CardAction>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/activity">
+                View all <ArrowRight aria-hidden />
+              </Link>
+            </Button>
+          </CardAction>
         </CardHeader>
         <CardContent>
           <ActivityList entries={activity} now={now} />

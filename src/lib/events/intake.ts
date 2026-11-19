@@ -128,7 +128,7 @@ export async function intakeEvent(
       userId: mailbox.userId,
       requestId: request.id,
       type: "email.received",
-      message: `Email from ${email.from.email}: ${email.subject}`,
+      message: `Email received from ${email.from.name ?? email.from.email}`,
       runId: webhookRunId,
     });
 
