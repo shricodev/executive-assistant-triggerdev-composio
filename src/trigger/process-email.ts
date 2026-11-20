@@ -25,7 +25,8 @@ import { getAccounts } from "@/lib/composio/connections";
 import { createReplyDraft, deleteDraft } from "@/lib/composio/gmail";
 import { getSettings, type Settings } from "@/lib/settings";
 
-// One original proposal plus one replacement if the slot is taken while waiting.
+// The agent drafts one proposal, plus one replacement if the slot is taken
+// while waiting. Versions the owner wrote by editing do not count.
 const MAX_PROPOSALS = 2;
 const MAX_AGENT_ATTEMPTS = 2;
 
@@ -283,19 +284,26 @@ export const processEmail = schemaTask({
     };
 
     let feedback: string | undefined;
+    let drafted = 0;
 
-    for (let version = 1; version <= MAX_PROPOSALS; version++) {
-      // On a retried attempt the proposal for this version already exists.
+    for (let version = 1; ; version++) {
+      // The version already exists on a retried attempt, and when the owner
+      // edited the previous one in the dashboard.
       let approval = await findApproval(requestId, version);
-      approval ??= await propose(context, version, feedback);
-      if (!approval) return { status: "skipped" as const };
+      if (!approval) {
+        if (drafted >= MAX_PROPOSALS) break;
+        approval = await propose(context, version, feedback);
+        if (!approval) return { status: "skipped" as const };
+      }
+      if (!approval.editedBy) drafted += 1;
 
+      approval = await awaitDecision(context, approval);
+      // Replaced by an owner edit, which carries the decision, or by a failed
+      // recheck, which leaves a reason for the agent.
       if (approval.status === "superseded") {
         feedback = approval.failureReason ?? undefined;
         continue;
       }
-
-      approval = await awaitDecision(context, approval);
       if (approval.status === "rejected" || approval.status === "expired") {
         await discardDraft(context, approval);
         return { status: approval.status, approvalId: approval.id };
