@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { approvals, type ApprovalStatus } from "@/db/schema";
 
 export const TRANSITIONS: Record<ApprovalStatus, readonly ApprovalStatus[]> = {
-  pending: ["approved", "rejected", "expired"],
+  pending: ["approved", "rejected", "expired", "superseded"],
   approved: ["executing", "superseded"],
   executing: ["completed", "failed"],
   rejected: [],
@@ -38,6 +38,13 @@ export async function transitionApproval(
     .where(and(eq(approvals.id, id), inArray(approvals.status, allowedFrom)))
     .returning();
   return row ?? null;
+}
+
+/** How a status reads in "This proposal was already ...". */
+export function describeStatus(status: ApprovalStatus) {
+  if (status === "executing" || status === "completed" || status === "failed") return "approved";
+  if (status === "superseded") return "replaced by a newer version";
+  return status;
 }
 
 export async function getApproval(id: string): Promise<Approval | null> {

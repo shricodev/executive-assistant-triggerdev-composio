@@ -2,7 +2,7 @@ import { and, eq, gt } from "drizzle-orm";
 import { db } from "@/db";
 import { approvals } from "@/db/schema";
 import { recordActivity } from "@/lib/activity";
-import { transitionApproval, type Approval } from "./state";
+import { describeStatus, transitionApproval, type Approval } from "./state";
 
 export type Decision = "approved" | "rejected";
 
@@ -52,7 +52,7 @@ export async function decide(input: DecisionInput): Promise<DecisionResult> {
     return {
       ok: false,
       code: "conflict",
-      message: `This proposal was already ${describe(current.status)}.`,
+      message: `This proposal was already ${describeStatus(current.status)}.`,
     };
   }
   if (current.expiresAt <= now) {
@@ -87,7 +87,7 @@ export async function decide(input: DecisionInput): Promise<DecisionResult> {
     return {
       ok: false,
       code: "conflict",
-      message: `This proposal was already ${describe(latest?.status ?? "decided")}.`,
+      message: `This proposal was already ${latest ? describeStatus(latest.status) : "decided"}.`,
     };
   }
 
@@ -98,10 +98,4 @@ export async function decide(input: DecisionInput): Promise<DecisionResult> {
     message: input.decision === "approved" ? "Proposal approved" : "Proposal rejected",
   });
   return { ok: true, approval: updated, repeated: false };
-}
-
-function describe(status: string) {
-  if (status === "executing" || status === "completed" || status === "failed") return "approved";
-  if (status === "superseded") return "replaced by a newer proposal";
-  return status;
 }

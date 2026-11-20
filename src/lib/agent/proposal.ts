@@ -9,6 +9,8 @@ export const INTENTS = [
 ] as const;
 export type Intent = (typeof INTENTS)[number];
 
+export const REPLY_MAX_LENGTH = 8000;
+
 const isoDateTime = z.iso.datetime({ offset: true });
 
 export const meetingSchema = z
@@ -33,7 +35,7 @@ export const proposalSchema = z
     email: z.object({
       to: z.email(),
       subject: z.string().min(1).max(200),
-      body: z.string().min(1).max(8000),
+      body: z.string().min(1).max(REPLY_MAX_LENGTH),
       threadId: z.string().min(1),
     }),
     meeting: meetingSchema.nullable(),
