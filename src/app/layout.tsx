@@ -9,7 +9,7 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "Aide", template: "%s · Aide" },
+  title: { default: "Trigger.dev <> Composio", template: "%s · Trigger.dev <> Composio" },
   description:
     "A webhook-driven AI executive assistant built on Trigger.dev and Composio.",
 };

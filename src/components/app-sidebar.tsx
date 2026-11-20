@@ -4,7 +4,6 @@ import { Activity, CircleCheckBig, LayoutDashboard, Settings } from "lucide-reac
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
-import { Logo } from "@/components/logo";
 import {
   Sidebar,
   SidebarContent,
@@ -54,14 +53,13 @@ function ActiveNav({ badge }: { badge: ReactNode }) {
 export function AppSidebar({ footer, badge }: { footer: ReactNode; badge: ReactNode }) {
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="group-data-[collapsible=icon]:hidden">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/">
-                <Logo className="size-8" />
                 <div className="grid leading-tight">
-                  <span className="font-semibold">Aide</span>
+                  <span className="truncate font-semibold">Trigger.dev &lt;&gt; Composio</span>
                   <span className="text-xs text-muted-foreground">Executive assistant</span>
                 </div>
               </Link>

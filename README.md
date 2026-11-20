@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="docs/assets/logo.svg" width="88" alt="Aide logo: an envelope with a green status dot">
-</p>
-
-<h1 align="center">aide</h1>
+<h1 align="center">trigger.dev &lt;&gt; composio</h1>
 
 <p align="center">
   <b>A webhook-driven AI executive assistant built on Trigger.dev and Composio.</b><br>
@@ -17,7 +13,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-2ea44f" alt="Apache 2.0 license"></a>
 </p>
 
-aide watches a founder's inbox. When an email arrives, Composio sends an event to a
+The app watches a founder's inbox. When an email arrives, Composio sends an event to a
 Trigger.dev **native inbound webhook**. Trigger.dev verifies it, dedupes it and starts a run.
 An agent reads the thread, looks up pricing and policy in the company's own documents, checks
 Google Calendar, and proposes a reply and a meeting time.
