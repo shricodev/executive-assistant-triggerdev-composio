@@ -19,16 +19,25 @@ import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ActionKind } from "@/db/schema";
 import { COMPANY_DOCUMENTS, type DocumentId } from "@/lib/agent/company-context";
+import { REPLY_MAX_LENGTH } from "@/lib/agent/proposal";
 import { formatDateTime, formatTimeRange, INTENT_LABELS, timeAgo } from "@/lib/format";
 import { getApprovalDetail, runUrl } from "@/lib/queries";
 import { requireUser } from "@/lib/session";
 import { getSettings } from "@/lib/settings";
 import { DecisionPanel } from "./decision-panel";
+import { EditReply } from "./edit-reply";
 import { RunWatcher } from "./run-watcher";
 
 export const metadata: Metadata = { title: "Review proposal" };
@@ -95,6 +104,7 @@ async function ApprovalDetail({ params }: Pick<PageProps<"/approvals/[id]">, "pa
           <Badge variant="secondary">{INTENT_LABELS[proposal.intent]}</Badge>
           {proposal.priority === "high" && <Badge variant="destructive">Escalation</Badge>}
           {approval.version > 1 && <Badge variant="outline">Revision {approval.version}</Badge>}
+          {approval.editedBy && <Badge variant="outline">Edited by you</Badge>}
         </div>
         <h1 className="text-xl font-semibold tracking-tight text-balance">{request.subject}</h1>
         <p className="text-sm text-muted-foreground">{proposal.summary}</p>
@@ -110,12 +120,14 @@ async function ApprovalDetail({ params }: Pick<PageProps<"/approvals/[id]">, "pa
       {approval.status === "superseded" && (
         <Alert>
           <CircleAlert aria-hidden />
-          <AlertTitle>Nothing was sent</AlertTitle>
+          <AlertTitle>
+            {approval.failureReason ? "Nothing was sent" : "This version was replaced"}
+          </AlertTitle>
           <AlertDescription>
-            {approval.failureReason}{" "}
+            {approval.failureReason ?? "The reply was edited after this version was drafted."}{" "}
             {detail.replacement && (
               <Link href={`/approvals/${detail.replacement}`} className="font-medium underline underline-offset-4">
-                Review the new proposal
+                {approval.failureReason ? "Review the new proposal" : "Open the current version"}
               </Link>
             )}
           </AlertDescription>
@@ -149,6 +161,17 @@ async function ApprovalDetail({ params }: Pick<PageProps<"/approvals/[id]">, "pa
               <CardDescription>Proposed reply</CardDescription>
               <CardTitle className="text-base">{proposal.email.subject}</CardTitle>
               <p className="text-sm text-muted-foreground">To {proposal.email.to}</p>
+              {approval.status === "pending" && (
+                <CardAction>
+                  <EditReply
+                    approvalId={approval.id}
+                    proposalHash={approval.proposalHash}
+                    body={proposal.email.body}
+                    maxLength={REPLY_MAX_LENGTH}
+                    hasMeeting={Boolean(proposal.meeting)}
+                  />
+                </CardAction>
+              )}
             </CardHeader>
             <CardContent>
               <p className="text-sm leading-relaxed whitespace-pre-wrap">{proposal.email.body}</p>

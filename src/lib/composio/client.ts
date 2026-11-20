@@ -36,6 +36,12 @@ export const WORKFLOW_TOOLS = {
   ],
 } as const;
 
+// Editing a pending reply in the dashboard swaps its Gmail draft.
+export const DRAFT_TOOLS = {
+  gmail: ["GMAIL_CREATE_EMAIL_DRAFT", "GMAIL_DELETE_DRAFT"],
+  googlecalendar: [],
+} as const;
+
 export type Accounts = { gmail: string; googlecalendar?: string };
 
 type ToolAllowlist = { gmail: readonly string[]; googlecalendar: readonly string[] };
