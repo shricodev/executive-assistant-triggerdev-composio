@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/hero.jpg" width="520" alt="Pencil sketch of a hook catching a paper plane, with an approval tick beside it">
+</p>
+
 <h1 align="center">trigger.dev &lt;&gt; composio</h1>
 
 <p align="center">
@@ -7,6 +11,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/trigger.dev-4.8-4f46e5" alt="Trigger.dev SDK 4.8">
+  <img src="https://img.shields.io/badge/composio-webhooks%20%2B%20tools-111827" alt="Composio webhooks and tools">
   <img src="https://img.shields.io/badge/next.js-16-000000" alt="Next.js 16">
   <img src="https://img.shields.io/badge/ai%20sdk-7-0a0a0a" alt="Vercel AI SDK 7">
   <img src="https://img.shields.io/badge/typescript-strict-3178c6" alt="TypeScript strict mode">
@@ -163,24 +168,15 @@ To do it by hand instead: copy the URL from **Webhooks → composio** in the Tri
 dashboard, set it as the webhook URL in Composio, and paste Composio's signing secret into
 **Set signing secret** on the endpoint.
 
-## Local development
+## Checks
 
 ```bash
-pnpm dev            # Next.js dashboard
-pnpm trigger:dev    # Trigger.dev tasks, with live reload
-
-pnpm test           # Vitest: intake, approvals, executor, proposal guards
-pnpm typecheck
-pnpm lint
-pnpm build
+pnpm test        # Vitest: intake, approvals, edits, executor, proposal guards
+pnpm typecheck && pnpm lint && pnpm build
 ```
 
 Tests run against an in-memory Postgres ([PGlite](https://pglite.dev)) with the real
-migrations applied, so the unique constraints and compare-and-swap updates behave as they do
-in production. No test touches Gmail, Calendar, Composio or a model.
-
-After changing [`src/db/schema.ts`](src/db/schema.ts), run `pnpm db:generate` and
-`pnpm db:migrate`.
+migrations applied. No test touches Gmail, Calendar, Composio or a model.
 
 ## Deploy
 
@@ -214,28 +210,10 @@ The app is three pieces: a Postgres database, the Trigger.dev tasks and the Next
    and the `getCompanyContext`, `GMAIL_FETCH_MESSAGE_BY_THREAD_ID` and
    `GOOGLECALENDAR_FREE_BUSY_QUERY` tool calls. The run then shows as waiting.
 4. In the dashboard, **Approvals** shows the proposal. A matching draft is in Gmail.
-5. Click **Approve and send**. The run resumes, and the page updates with links to the sent
-   reply and the calendar event.
+5. Optionally click **Edit** to reword the reply. Then click **Approve and send**. The run
+   resumes, creates the calendar event and sends the reply.
 6. Send the same kind of email again and click **Reject**. The draft disappears and nothing is
    sent.
-
-## Layout
-
-```
-src/
-  trigger/     composio.ts (endpoint + webhook task), process-email.ts (workflow)
-  lib/
-    events/    payload schema, filters, deduplicating intake
-    agent/     prompt, tools, AI SDK call, proposal schema and guards
-    approvals/ state machine, decide(), reviseReply()
-    actions/   idempotent executor, Gmail and Calendar handlers
-    composio/  client, tool allowlists, connections, Gmail and Calendar calls
-  app/         Next.js dashboard: overview, approvals, activity, settings
-  db/          Drizzle schema
-demo-data/     the fictional company's documents
-scripts/       migrate, webhook setup
-drizzle/       SQL migrations
-```
 
 ## License
 
