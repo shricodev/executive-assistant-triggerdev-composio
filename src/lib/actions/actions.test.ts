@@ -106,6 +106,35 @@ describe("runAction", () => {
     expect(h.reconcile).toHaveBeenCalledTimes(1);
   });
 
+  it("never calls the provider again when the outcome check itself keeps failing", async () => {
+    const action = await seedAction("send_email", { status: "executing", attempts: 1 });
+    const h = handler({
+      reconcile: vi.fn(async (): Promise<Reconciliation> => { throw new Error("GMAIL_GET_DRAFT: unexpected response"); }),
+    });
+
+    const result = await runAction(action.id, h, { sleep, maxAttempts: 3 });
+
+    expect(result).toMatchObject({ status: "failed", attempts: 1 });
+    expect(result.error).toContain("Could not confirm whether an earlier attempt took effect");
+    expect(result.error).toContain("GMAIL_GET_DRAFT");
+    expect(h.reconcile).toHaveBeenCalledTimes(3);
+    expect(h.perform).not.toHaveBeenCalled();
+  });
+
+  it("retries the outcome check before deciding", async () => {
+    const action = await seedAction("send_email", { status: "executing", attempts: 1 });
+    const reconcile = vi
+      .fn<ActionHandler["reconcile"]>()
+      .mockRejectedValueOnce(new Error("timeout"))
+      .mockResolvedValueOnce({ state: "done", result: { messageId: "sent_before_crash" } });
+    const h = handler({ reconcile });
+
+    const result = await runAction(action.id, h, { sleep });
+
+    expect(result).toMatchObject({ status: "succeeded", result: { messageId: "sent_before_crash" } });
+    expect(h.perform).not.toHaveBeenCalled();
+  });
+
   it("gives up after the attempt limit and reports the last error", async () => {
     const action = await seedAction();
     const h = handler({ perform: vi.fn(async () => { throw new Error("503 from provider"); }) });

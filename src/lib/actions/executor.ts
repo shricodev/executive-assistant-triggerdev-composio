@@ -34,6 +34,33 @@ export type ExecutorOptions = {
 
 const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+const backoff = (attempt: number) => Math.min(1_000 * 2 ** (attempt - 1), 15_000);
+
+/**
+ * A reconcile that keeps failing leaves the outcome unknown. It must never
+ * fall through to another provider call.
+ */
+async function reconcile(
+  handler: ActionHandler,
+  maxAttempts: number,
+  sleep: (ms: number) => Promise<void>,
+): Promise<Reconciliation> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await handler.reconcile();
+    } catch (error) {
+      if (attempt >= maxAttempts) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        return {
+          state: "unknown",
+          reason: `Could not confirm whether an earlier attempt took effect. ${message}`,
+        };
+      }
+      await sleep(backoff(attempt));
+    }
+  }
+}
+
 async function finish(id: string, status: "succeeded" | "failed", patch: Partial<Action>) {
   const [row] = await db
     .update(actions)
@@ -66,7 +93,7 @@ export async function runAction(
     if (action.status === "succeeded" || action.status === "failed") return action;
 
     if (action.status === "executing") {
-      const reconciled = await handler.reconcile();
+      const reconciled = await reconcile(handler, maxAttempts, sleep);
       if (reconciled.state === "done") {
         return finish(actionId, "succeeded", { result: reconciled.result, error: null });
       }
@@ -78,7 +105,7 @@ export async function runAction(
           error: action.error ?? "Gave up after repeated failures.",
         });
       }
-      await sleep(Math.min(1_000 * 2 ** (action.attempts - 1), 15_000));
+      await sleep(backoff(action.attempts));
     }
 
     const [claimed] = await db
