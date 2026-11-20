@@ -60,7 +60,8 @@ flowchart LR
    suspends on `wait.forToken()`.
 5. **Decide.** The dashboard calls [`decide()`](src/lib/approvals/decide.ts): owner only,
    once only, before expiry, for the exact hash that was shown. Then `wait.completeToken()`
-   resumes the run.
+   resumes the run. Editing the reply first goes through
+   [`reviseReply()`](src/lib/approvals/revise.ts) under the same rules.
 6. **Execute.** The run rechecks availability, then creates the event and sends the draft
    through [`runAction()`](src/lib/actions/executor.ts), which never performs the same side
    effect twice, including after a crash.
@@ -77,6 +78,9 @@ flowchart LR
   called from code, after approval, through a separate Composio session.
 - **Immutable approvals**: you approve a hash. If the Gmail draft was edited afterwards, it is
   not sent.
+- **Editable replies**: change the wording in the dashboard before you approve. The edit is
+  stored as a new version with its own hash and Gmail draft, the old version is kept as
+  replaced, and the same suspended run picks up whichever version you decide on.
 - **Calendar recheck**: if the slot was booked while the proposal waited, nothing is sent and
   a new proposal is drafted once.
 - **Honest failure states**: each action records its own outcome, so "event created, reply
@@ -227,7 +231,7 @@ src/
   lib/
     events/    payload schema, filters, deduplicating intake
     agent/     prompt, tools, AI SDK call, proposal schema and guards
-    approvals/ state machine, decide()
+    approvals/ state machine, decide(), reviseReply()
     actions/   idempotent executor, Gmail and Calendar handlers
     composio/  client, tool allowlists, connections, Gmail and Calendar calls
   app/         Next.js dashboard: overview, approvals, activity, settings
