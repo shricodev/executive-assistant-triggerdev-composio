@@ -2,7 +2,7 @@ import { AbortTaskRunError, logger, metadata, schemaTask, wait } from "@trigger.
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { approvals, requests } from "@/db/schema";
+import { approvals, requests, type ActionKind } from "@/db/schema";
 import { agentEnv, env } from "@/env";
 import { executeApproval } from "@/lib/actions/execute";
 import { handlerFor } from "@/lib/actions/handlers";
@@ -28,6 +28,11 @@ import { getSettings, type Settings } from "@/lib/settings";
 // One original proposal plus one replacement if the slot is taken while waiting.
 const MAX_PROPOSALS = 2;
 const MAX_AGENT_ATTEMPTS = 2;
+
+const ACTION_SPANS: Record<ActionKind, string> = {
+  create_event: "Create calendar event",
+  send_email: "Send approved reply",
+};
 
 type Request = typeof requests.$inferSelect;
 
@@ -147,7 +152,9 @@ async function propose(
   });
 
   return withSession(context, WORKFLOW_TOOLS, async (session) => {
-    const draft = await createReplyDraft(session, proposal.email);
+    const draft = await logger.trace("Create Gmail draft", () =>
+      createReplyDraft(session, proposal.email),
+    );
     try {
       return await createApproval({
         requestId: request.id,
@@ -199,7 +206,9 @@ async function awaitDecision(context: Context, approval: Approval): Promise<Appr
 async function discardDraft(context: Context, approval: Approval) {
   if (!approval.draftId) return;
   const draftId = approval.draftId;
-  await withSession(context, WORKFLOW_TOOLS, (session) => deleteDraft(session, draftId));
+  await logger.trace("Delete Gmail draft", () =>
+    withSession(context, WORKFLOW_TOOLS, (session) => deleteDraft(session, draftId)),
+  );
 }
 
 /**
@@ -213,7 +222,9 @@ async function recheck(context: Context, approval: Approval): Promise<string | n
   const timing = checkMeetingTime(meeting, context.settings, new Date());
   if (!timing.ok) return `The approved time is no longer valid. ${timing.reason}`;
 
-  const free = await withSession(context, WORKFLOW_TOOLS, (session) => isSlotFree(session, meeting));
+  const free = await logger.trace("Recheck calendar availability", () =>
+    withSession(context, WORKFLOW_TOOLS, (session) => isSlotFree(session, meeting)),
+  );
   return free ? null : `${meeting.start} was booked while the proposal was waiting for approval.`;
 }
 
@@ -313,9 +324,13 @@ export const processEmail = schemaTask({
 
       metadata.set("stage", "executing");
       const execution = await withSession(context, WORKFLOW_TOOLS, (session) =>
-        executeApproval(approval.id, ctx.run.id, (kind, current) =>
-          handlerFor(kind, session, current),
-        ),
+        executeApproval(approval.id, ctx.run.id, (kind, current) => {
+          const handler = handlerFor(kind, session, current);
+          return {
+            ...handler,
+            perform: () => logger.trace(ACTION_SPANS[kind], () => handler.perform()),
+          };
+        }),
       );
       metadata.set("stage", execution.status);
       return { status: execution.status, approvalId: approval.id };
