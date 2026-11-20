@@ -81,15 +81,16 @@ export async function intakeEvent(
       .returning({ id: inboundEvents.id });
 
     if (!inserted) {
-      // A retried attempt of this webhook run. Hand back the request the
-      // first attempt created so the caller can re-trigger idempotently.
+      // Only a retried attempt of the run that recorded the event gets its
+      // request back, so it can re-trigger idempotently. The same event
+      // arriving as another delivery is a duplicate.
       const [existing] = await tx
-        .select({ requestId: requests.id, status: inboundEvents.status })
+        .select({ requestId: requests.id, webhookRunId: inboundEvents.webhookRunId })
         .from(inboundEvents)
         .leftJoin(requests, eq(requests.inboundEventId, inboundEvents.id))
         .where(eq(inboundEvents.composioEventId, event.id))
         .limit(1);
-      if (existing?.requestId) {
+      if (existing?.requestId && existing.webhookRunId === webhookRunId) {
         return {
           outcome: "accepted",
           requestId: existing.requestId,

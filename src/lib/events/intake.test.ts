@@ -44,6 +44,14 @@ describe("intakeEvent", () => {
     expect(await db.select().from(inboundEvents)).toHaveLength(1);
   });
 
+  it("treats the same event in a different webhook run as a duplicate", async () => {
+    await intakeEvent(gmailEvent(), "run_1");
+    const replay = await intakeEvent(gmailEvent(), "run_2");
+
+    expect(replay).toEqual({ outcome: "duplicate", reason: "event_already_seen" });
+    expect(await db.select().from(requests)).toHaveLength(1);
+  });
+
   it("treats a second event for the same Gmail message as a duplicate", async () => {
     await intakeEvent(gmailEvent({ id: "msg_1" }), "run_1");
     const second = await intakeEvent(gmailEvent({ id: "msg_2" }), "run_2");
