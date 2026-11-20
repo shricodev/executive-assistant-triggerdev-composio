@@ -65,7 +65,12 @@ export async function createEvent(
     create_meeting_room: true,
     extended_properties: { private: { [REFERENCE_KEY]: reference } },
   });
-  const event = parseResponse("GOOGLECALENDAR_CREATE_EVENT", eventSchema, data);
+  // Unlike the read tools, this one nests Google's event under `response_data`.
+  const event = parseResponse(
+    "GOOGLECALENDAR_CREATE_EVENT",
+    eventSchema,
+    data.response_data ?? data,
+  );
   return { eventId: event.id, url: event.htmlLink ?? null };
 }
 
