@@ -1,5 +1,6 @@
 import { Composio, SessionPreset } from "@composio/core";
 import { VercelProvider } from "@composio/vercel";
+import type { z } from "zod";
 import { env } from "@/env";
 
 let client: Composio<VercelProvider> | undefined;
@@ -89,4 +90,18 @@ export async function executeTool(
     throw new ToolError(slug, result.error || `tool ${result.resultType}`);
   }
   return result.data;
+}
+
+/** Validates a tool's response, naming the tool and the field when it does not fit. */
+export function parseResponse<Schema extends z.ZodType>(
+  slug: string,
+  schema: Schema,
+  data: unknown,
+): z.output<Schema> {
+  const parsed = schema.safeParse(data);
+  if (parsed.success) return parsed.data;
+  const issues = parsed.error.issues
+    .map((issue) => `${issue.path.join(".") || "response"}: ${issue.message}`)
+    .join("; ");
+  throw new ToolError(slug, `unexpected response (${issues})`);
 }

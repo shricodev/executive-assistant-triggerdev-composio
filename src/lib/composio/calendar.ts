@@ -1,10 +1,6 @@
 import { z } from "zod";
 import type { Meeting } from "@/lib/agent/proposal";
-import { executeTool, type ComposioSession } from "./client";
-
-function unwrap(data: Record<string, unknown>): unknown {
-  return data.response_data ?? data;
-}
+import { executeTool, parseResponse, type ComposioSession } from "./client";
 
 const freeBusySchema = z.object({
   calendars: z.record(
@@ -26,7 +22,7 @@ export async function getBusyIntervals(
     timeMax: window.end,
     items: [{ id: "primary" }],
   });
-  const parsed = freeBusySchema.parse(unwrap(data));
+  const parsed = parseResponse("GOOGLECALENDAR_FREE_BUSY_QUERY", freeBusySchema, data);
   return Object.values(parsed.calendars).flatMap((calendar) => calendar.busy);
 }
 
@@ -69,12 +65,13 @@ export async function createEvent(
     create_meeting_room: true,
     extended_properties: { private: { [REFERENCE_KEY]: reference } },
   });
-  const event = eventSchema.parse(unwrap(data));
+  const event = parseResponse("GOOGLECALENDAR_CREATE_EVENT", eventSchema, data);
   return { eventId: event.id, url: event.htmlLink ?? null };
 }
 
+// Matching events come back under `event_data.event_data`.
 const eventListSchema = z.object({
-  items: z.array(z.unknown()).default([]),
+  event_data: z.object({ event_data: z.array(z.unknown()).default([]) }),
 });
 
 export async function findEventByReference(
@@ -88,15 +85,9 @@ export async function findEventByReference(
     time_max: meeting.end,
     single_events: true,
   });
-  const body = unwrap(data);
-  const list = eventListSchema.safeParse(
-    body && typeof body === "object" && "event_data" in body
-      ? { items: (body as { event_data: { event_data?: unknown } }).event_data?.event_data }
-      : body,
-  );
-  if (!list.success) return null;
+  const list = parseResponse("GOOGLECALENDAR_FIND_EVENT", eventListSchema, data);
 
-  for (const item of list.data.items) {
+  for (const item of list.event_data.event_data) {
     const event = eventSchema.safeParse(item);
     if (event.success && event.data.extendedProperties?.private?.[REFERENCE_KEY] === reference) {
       return { eventId: event.data.id, url: event.data.htmlLink ?? null };

@@ -1,10 +1,5 @@
 import { z } from "zod";
-import { executeTool, ToolError, type ComposioSession } from "./client";
-
-// Composio returns Gmail's own response, sometimes nested under `response_data`.
-function unwrap(data: Record<string, unknown>): unknown {
-  return data.response_data ?? data;
-}
+import { executeTool, parseResponse, ToolError, type ComposioSession } from "./client";
 
 function isNotFound(error: unknown) {
   return error instanceof ToolError && /not found|404|invalid id/i.test(error.message);
@@ -14,13 +9,27 @@ const profileSchema = z.object({ emailAddress: z.email() });
 
 export async function getMailboxAddress(session: ComposioSession) {
   const data = await executeTool(session, "GMAIL_GET_PROFILE", { user_id: "me" });
-  return profileSchema.parse(unwrap(data)).emailAddress.toLowerCase();
+  return parseResponse("GMAIL_GET_PROFILE", profileSchema, data).emailAddress.toLowerCase();
 }
 
-const draftSchema = z.object({
-  id: z.string().min(1),
-  message: z.object({ id: z.string().min(1), threadId: z.string().optional() }),
-});
+// Composio names a message's id `id` in some Gmail responses (create draft)
+// and `messageId` in others (get draft), so both are accepted.
+const messageRefSchema = z
+  .object({
+    id: z.string().min(1).optional(),
+    messageId: z.string().min(1).optional(),
+    threadId: z.string().optional(),
+  })
+  .transform((message, ctx) => {
+    const id = message.messageId ?? message.id;
+    if (!id) {
+      ctx.addIssue({ code: "custom", message: "message id is missing" });
+      return z.NEVER;
+    }
+    return { id, threadId: message.threadId ?? null };
+  });
+
+const draftSchema = z.object({ id: z.string().min(1), message: messageRefSchema });
 
 export type Draft = { draftId: string; messageId: string };
 
@@ -35,7 +44,7 @@ export async function createReplyDraft(
     thread_id: reply.threadId,
     is_html: false,
   });
-  const draft = draftSchema.parse(unwrap(data));
+  const draft = parseResponse("GMAIL_CREATE_EMAIL_DRAFT", draftSchema, data);
   return { draftId: draft.id, messageId: draft.message.id };
 }
 
@@ -49,18 +58,13 @@ export async function getDraft(
       draft_id: draftId,
       format: "minimal",
     });
-    const draft = draftSchema.parse(unwrap(data));
+    const draft = parseResponse("GMAIL_GET_DRAFT", draftSchema, data);
     return { draftId: draft.id, messageId: draft.message.id };
   } catch (error) {
     if (isNotFound(error)) return null;
     throw error;
   }
 }
-
-const sentSchema = z.object({
-  id: z.string().min(1),
-  threadId: z.string().optional(),
-});
 
 export type SentMessage = { messageId: string; threadId: string | null };
 
@@ -69,8 +73,8 @@ export async function sendDraft(
   draftId: string,
 ): Promise<SentMessage> {
   const data = await executeTool(session, "GMAIL_SEND_DRAFT", { draft_id: draftId });
-  const sent = sentSchema.parse(unwrap(data));
-  return { messageId: sent.id, threadId: sent.threadId ?? null };
+  const sent = parseResponse("GMAIL_SEND_DRAFT", messageRefSchema, data);
+  return { messageId: sent.id, threadId: sent.threadId };
 }
 
 export async function deleteDraft(session: ComposioSession, draftId: string) {
@@ -106,7 +110,7 @@ export async function findSentReply(
   const data = await executeTool(session, "GMAIL_FETCH_MESSAGE_BY_THREAD_ID", {
     thread_id: threadId,
   });
-  const parsed = threadSchema.safeParse(unwrap(data));
+  const parsed = threadSchema.safeParse(data);
   if (!parsed.success) return null;
 
   for (const message of parsed.data.messages) {
