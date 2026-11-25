@@ -1,7 +1,7 @@
 import { AbortTaskRunError, logger, metadata, schemaTask, wait } from "@trigger.dev/sdk";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
-import { db } from "@/db";
+import { db, releaseDb } from "@/db";
 import { approvals, requests, type ActionKind } from "@/db/schema";
 import { agentEnv, env } from "@/env";
 import { executeApproval } from "@/lib/actions/execute";
@@ -183,6 +183,7 @@ async function propose(
 async function awaitDecision(context: Context, approval: Approval): Promise<Approval> {
   if (approval.status === "pending" && approval.waitTokenId) {
     metadata.set("stage", "awaiting_approval");
+    await releaseDb();
     const result = await wait.forToken<DecisionPayload>(approval.waitTokenId);
     logger.info("Resumed from approval wait", { approvalId: approval.id, timedOut: !result.ok });
   }
