@@ -2,6 +2,7 @@ import type { Settings } from "@/lib/settings";
 
 const MAX_DAYS_AHEAD = 30;
 const MIN_LEAD_MINUTES = 60;
+const HAS_OFFSET = /T.*(Z|[+-]\d{2}:?\d{2})$/i;
 
 type LocalTime = { weekday: string; hour: number; minute: number };
 
@@ -29,6 +30,16 @@ export function checkMeetingTime(
   settings: Settings,
   now: Date,
 ): SlotCheck {
+  // Without an offset, Date would read the time in the worker's own timezone
+  // and the invite could land hours away from the time stated in the reply.
+  if (!HAS_OFFSET.test(slot.start.trim()) || !HAS_OFFSET.test(slot.end.trim())) {
+    return {
+      ok: false,
+      reason:
+        "The meeting start and end must include a UTC offset, for example 2026-11-24T15:00:00-06:00.",
+    };
+  }
+
   const start = new Date(slot.start);
   const end = new Date(slot.end);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {

@@ -121,6 +121,19 @@ describe("checkMeetingTime", () => {
     expect(checkMeetingTime(slot, { ...settings, timezone: "Asia/Tokyo" }, now).ok).toBe(false);
   });
 
+  it("rejects a time without a UTC offset instead of guessing the timezone", () => {
+    const slot = { start: "2026-11-24T10:00:00", end: "2026-11-24T10:30:00" };
+    const result = checkMeetingTime(slot, settings, now);
+    expect(result).toMatchObject({ ok: false, reason: expect.stringContaining("UTC offset") });
+    expect(
+      checkMeetingTime(
+        { start: "2026-11-24T10:00:00-0600", end: "2026-11-24T10:30:00-06:00" },
+        settings,
+        now,
+      ),
+    ).toEqual({ ok: true });
+  });
+
   it("requires at least an hour of notice", () => {
     const slot = { start: "2026-11-20T16:30:00Z", end: "2026-11-20T17:00:00Z" };
     expect(checkMeetingTime(slot, settings, now).ok).toBe(false);
