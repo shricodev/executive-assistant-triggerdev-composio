@@ -82,17 +82,33 @@ async function createGmailTrigger(userId: string, connectedAccountId: string) {
   });
 }
 
+/** True when Composio says the thing being deleted is already gone. */
+function alreadyGone(error: unknown) {
+  if (!(error instanceof Error)) return false;
+  const { status, statusCode } = error as { status?: unknown; statusCode?: unknown };
+  return status === 404 || statusCode === 404 || /not.?found/i.test(error.message);
+}
+
+const ignoreGone = (error: unknown) => {
+  if (!alreadyGone(error)) throw error;
+};
+
 export async function removeConnection(userId: string, toolkit: Toolkit) {
   const [connection] = await db
-    .delete(connections)
+    .select()
+    .from(connections)
     .where(and(eq(connections.userId, userId), eq(connections.toolkit, toolkit)))
-    .returning();
+    .limit(1);
   if (!connection) return;
 
+  // Composio first. If a call fails the row is still here, so Disconnect can
+  // be tried again instead of leaving a live trigger nobody can remove.
   if (connection.triggerId) {
-    await composio().triggers.delete(connection.triggerId);
+    await composio().triggers.delete(connection.triggerId).catch(ignoreGone);
   }
-  await composio().connectedAccounts.delete(connection.connectedAccountId);
+  await composio().connectedAccounts.delete(connection.connectedAccountId).catch(ignoreGone);
+
+  await db.delete(connections).where(eq(connections.id, connection.id));
 
   await recordActivity(db, {
     userId,
