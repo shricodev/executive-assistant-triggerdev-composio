@@ -346,6 +346,13 @@ export const processEmail = schemaTask({
 
     const message = `No usable meeting time after ${MAX_PROPOSALS} proposals. ${feedback ?? ""}`.trim();
     await db.update(requests).set({ status: "failed", error: message }).where(eq(requests.id, requestId));
+    await recordActivity(db, {
+      userId: request.userId,
+      requestId,
+      type: "workflow.failed",
+      message,
+      runId: ctx.run.id,
+    });
     throw new AbortTaskRunError(message);
   },
 });
