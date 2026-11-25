@@ -37,8 +37,18 @@ export type PromptInput = {
   feedback?: string;
 };
 
+// The sender controls these strings. Without this, a body containing the
+// closing tag could make later text look like it sits outside the email.
+const untrusted = (text: string) => text.replace(/<\s*\/?\s*email\s*>/gi, "");
+
 export function buildPrompt(input: PromptInput) {
-  const { email, settings } = input;
+  const { settings } = input;
+  const email = {
+    ...input.email,
+    fromName: input.email.fromName && untrusted(input.email.fromName),
+    subject: untrusted(input.email.subject),
+    body: untrusted(input.email.body),
+  };
   const calendar = input.calendarConnected
     ? `Calendar: connected. Working hours ${settings.workdayStartHour}:00 to ${settings.workdayEndHour}:00, Monday to Friday. Meetings are ${settings.meetingMinutes} minutes.`
     : "Calendar: not connected. Do not propose a meeting time; say Maya will follow up to find one.";
